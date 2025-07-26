@@ -9,9 +9,24 @@ import { COLORS } from './constants'; // Assuming COLORS is defined here
 import GlassCard from './components/common/GlassCard'; // Make sure this path is correct
 
 // Firebase global variables (provided by Canvas environment)
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+// IMPORTANT: For local development outside of Canvas, you MUST provide your own Firebase config here.
+// Replace "YOUR_..." placeholders with your actual Firebase project details if running locally.
+const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? JSON.parse(__firebase_config) : {
+    // Placeholder for local development if __firebase_config is not provided by Canvas
+    apiKey: "YOUR_FIREBASE_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID", // THIS IS THE CRITICAL FIELD
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_WEB_APP_ID"
+};
+
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; // This appId is for Firestore paths
+
+// Log the Firebase config being used for debugging
+console.log("Firebase Config being used:", firebaseConfig);
+console.log("App ID being used:", appId);
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
