@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, updateDoc, collection, query, where, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 import GlassCard from './common/GlassCard';
 import { COLORS } from '../constants';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react'; // Keep Lucide icons
 
 const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
     const [targetUserId, setTargetUserId] = useState(''); // For targeting users by Discord ID
@@ -491,11 +491,11 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h2 className="text-4xl font-extrabold mb-8 text-center drop-shadow-sm" style={{ color: COLORS.primaryAccent }}>🧰 Administrative Dashboard</h2>
+            <h2 className="text-4xl font-extrabold mb-8 text-center drop-shadow-sm" style={{ color: COLORS.primaryAccent }}>Administrative Dashboard</h2>
 
             {/* Account Requests Queue */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>📝 Account Requests Queue</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Account Requests Queue</h3>
                 <GlassCard className="p-8">
                     {accountRequests.length === 0 ? (
                         <p className="text-gray-400 text-center">No pending account requests.</p>
@@ -518,7 +518,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Credit Card Requests Queue */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>💳 Credit Card Requests Queue</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Credit Card Requests Queue</h3>
                 <GlassCard className="p-8">
                     {creditCardRequests.length === 0 ? (
                         <p className="text-gray-400 text-center">No pending credit card requests.</p>
@@ -541,7 +541,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Deposit Requests Queue */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>💰 Deposit Requests Queue</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Deposit Requests Queue</h3>
                 <GlassCard className="p-8">
                     {depositRequests.length === 0 ? (
                         <p className="text-gray-400 text-center">No pending deposit requests.</p>
@@ -564,7 +564,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Withdrawal Requests Queue */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>💸 Withdrawal Requests Queue</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Withdrawal Requests Queue</h3>
                 <GlassCard className="p-8">
                     {withdrawalRequests.length === 0 ? (
                         <p className="text-gray-400 text-center">No pending withdrawal requests.</p>
@@ -587,7 +587,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Loan Requests Queue */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>📑 Loan Requests Queue</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Loan Requests Queue</h3>
                 <GlassCard className="p-8">
                     {loanRequests.length === 0 ? (
                         <p className="text-gray-400 text-center">No pending loan requests.</p>
@@ -620,7 +620,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* View/Edit KYC Info Section */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>🆔 View/Edit KYC Info</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>View/Edit KYC Info</h3>
                 <GlassCard className="p-8">
                     <form onSubmit={handleFetchKycInfo} className="space-y-4">
                         <input type="text" placeholder="User Discord ID or KYC Code" value={kycSearchId} onChange={(e) => setKycSearchId(e.target.value)} className="w-full p-3 border border-gray-600 rounded-lg" style={{ backgroundColor: COLORS.secondaryAccent, color: COLORS.typography }} />
@@ -642,7 +642,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Credit Score Checker Section */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>📈 Credit Score Checker</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Credit Score Checker</h3>
                 <GlassCard className="p-8">
                     <form onSubmit={handleUpdateCreditScore} className="space-y-4">
                         <input type="text" placeholder="User Discord ID" value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="w-full p-3 border border-gray-600 rounded-lg mb-4" style={{ backgroundColor: COLORS.secondaryAccent, color: COLORS.typography }} />
@@ -659,7 +659,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Role-Based Access Section */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>🔑 Role-Based Access</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Role-Based Access</h3>
                 <GlassCard className="p-8">
                     <input type="text" placeholder="User Discord ID" value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="w-full p-3 border border-gray-600 rounded-lg mb-4" style={{ backgroundColor: COLORS.secondaryAccent, color: COLORS.typography }} />
                     <select value={specialAccountType} onChange={(e) => setSpecialAccountType(e.target.value)} className="w-full p-3 border border-gray-600 rounded-lg mb-4" style={{ backgroundColor: COLORS.secondaryAccent, color: COLORS.typography }}>
@@ -674,7 +674,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* User Accounts Management Section */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>🧍 User Accounts</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>User Accounts</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <GlassCard className="p-6">
                         <h4 className="text-2xl font-semibold mb-4" style={{ color: COLORS.primaryAccent }}>Create Personal Account</h4>
@@ -713,7 +713,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Credit System Management */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>💳 Credit System</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Credit System</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <GlassCard className="p-6">
                         <h4 className="text-2xl font-semibold mb-4" style={{ color: COLORS.primaryAccent }}>Credit Card Approval</h4>
@@ -736,7 +736,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Money Management */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>💰 Money Management</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Money Management</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <GlassCard className="p-6">
                         <h4 className="text-2xl font-semibold mb-4" style={{ color: COLORS.primaryAccent }}>Government Deposits/Withdrawals</h4>
@@ -757,7 +757,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Account Approvals */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>🏛️ Account Approvals</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Account Approvals</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <GlassCard className="p-6">
                         <h4 className="text-2xl font-semibold mb-4" style={{ color: COLORS.primaryAccent }}>Business Registration Linkage</h4>
@@ -779,7 +779,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Loans & Credit Lines */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>📑 Loans & Credit Lines</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Loans & Credit Lines</h3>
                 <GlassCard className="p-8">
                     <h4 className="text-2xl font-semibold mb-4" style={{ color: COLORS.primaryAccent }}>Loan Applications Review</h4>
                     <ul className="space-y-3 mb-4">
@@ -797,7 +797,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Transactions & Reports */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>📊 Transactions & Reports</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Transactions & Reports</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <GlassCard className="p-6">
                         <h4 className="text-2xl font-semibold mb-4" style={{ color: COLORS.primaryAccent }}>Generate Tax Reports</h4>
@@ -814,7 +814,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Security & Admin Actions */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>🚨 Security & Admin Actions</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Security & Admin Actions</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <GlassCard className="p-6">
                         <h4 className="text-2xl font-semibold mb-4" style={{ color: COLORS.primaryAccent }}>Flag Suspicious Behavior</h4>
@@ -846,7 +846,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Bonus Automations (Placeholder) */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>🧠 Bonus Automations (Info Only)</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Bonus Automations (Info Only)</h3>
                 <GlassCard className="p-8">
                     <ul className="space-y-3 text-gray-400">
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Daily Auto-Credits:</span> Deposits daily/weekly based on job ID or ministry payroll.</li>
@@ -860,15 +860,15 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             {/* Recommended Admin Panel Features (Placeholder) */}
             <section className="mb-12">
-                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>🛠 Recommended Admin Panel Features (Info Only)</h3>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Recommended Admin Panel Features (Info Only)</h3>
                 <GlassCard className="p-8">
                     <ul className="space-y-3 text-gray-400">
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>🔍 Search:</span> Search any user by ID, name, or account type.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>📉 Force Adjust:</span> Force adjust balances or scores manually.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>🛑 Lock/Freeze/Ban:</span> Lock/freeze/ban user account access.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }>🧾 View Audit Logs:</span> View audit logs for any account.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>🏛️ Dashboard by Type:</span> See dashboard by account type (Gov, Business, etc.).</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>📤 Export Reports:</span> Export reports or stats (Excel/CSV).</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Search:</span> Search any user by ID, name, or account type.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Force Adjust:</span> Force adjust balances or scores manually.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Lock/Freeze/Ban:</span> Lock/freeze/ban user account access.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>View Audit Logs:</span> View audit logs for any account.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Dashboard by Type:</span> See dashboard by account type (Gov, Business, etc.).</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Export Reports:</span> Export reports or stats (Excel/CSV).</li>
                     </ul>
                 </GlassCard>
             </section>

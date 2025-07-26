@@ -10,8 +10,8 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
     const [placeOfBirth, setPlaceOfBirth] = useState('');
     const [region, setRegion] = useState('');
     const [gender, setGender] = useState('');
-    const [discordId, setDiscordId] = useState('');
-    const [password, setPassword] = useState('');
+    const [discordId, setDiscordId] = useState(''); // This state holds the Discord ID input
+    const [password, setPassword] = useState('');   // This state holds the password input
     const [confirmPassword, setConfirmPassword] = useState('');
     const [occupation, setOccupation] = useState('');
     const [citizenshipStatus, setCitizenshipStatus] = useState('');
@@ -148,8 +148,20 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
         const adminEmail = "admin@sberbank.com"; // Fixed admin email for Firebase Auth
         const adminPass = "adminpass"; // Fixed admin password
 
+        // Trim whitespace from inputs for robust comparison
+        const trimmedDiscordId = discordId.trim();
+        const trimmedPassword = password.trim();
+
+        console.log("Admin Login Attempt:");
+        console.log("  Input Discord ID:", `'${trimmedDiscordId}'`, "Length:", trimmedDiscordId.length);
+        console.log("  Expected Discord ID:", `'Admin#0000'`, "Length:", 'Admin#0000'.length);
+        console.log("  Input Password:", `'${trimmedPassword}'`, "Length:", trimmedPassword.length);
+        console.log("  Expected Password:", `'adminpass'`, "Length:", 'adminpass'.length);
+        console.log("  Discord ID Match:", trimmedDiscordId === 'Admin#0000');
+        console.log("  Password Match:", trimmedPassword === adminPass);
+
         // Check if provided credentials match the hardcoded admin credentials
-        if (discordId !== 'Admin#0000' || password !== adminPass) {
+        if (trimmedDiscordId !== 'Admin#0000' || trimmedPassword !== adminPass) {
             alert('Invalid admin credentials.');
             return;
         }
@@ -162,7 +174,8 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                 adminUser = userCredential.user;
             } catch (loginError) {
                 // If admin user not found (first time setup), create it
-                if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/wrong-password') {
+                if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/wrong-password' || loginError.code === 'auth/invalid-credential') {
+                    console.log("Admin user not found or invalid credentials, attempting to create it.");
                     const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
                     adminUser = userCredential.user;
                     // Set admin profile in Firestore upon creation
