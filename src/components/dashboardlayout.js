@@ -2,9 +2,10 @@ import React, { useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import GlassCard from './common/GlassCard';
 import { COLORS } from '../constants';
-import { UserCog, Briefcase, Landmark, TrendingUp, PiggyBank, CreditCard, UserRoundSearch, PlusCircle, FileText, Shield } from 'lucide-react';
+import { UserCog, Briefcase, Landmark, TrendingUp, PiggyBank, CreditCard, UserRoundSearch, PlusCircle, FileText, Shield, Star } from 'lucide-react'; // Added Star icon for SberElite
 
 const DashboardLayout = ({ userProfile, setCurrentView, db, appId, auth }) => {
+    // Function to determine credit score tier and associated information
     const getCreditScoreTier = (score) => {
         if (score >= 800) return { tier: 'Excellent', color: COLORS.primaryAccent, description: 'VIP status, priority approval' };
         if (score >= 750) return { tier: 'Very Good', color: COLORS.primaryAccent, description: 'Preferred rates, better limits' };
@@ -20,7 +21,11 @@ const DashboardLayout = ({ userProfile, setCurrentView, db, appId, auth }) => {
     const hasAnyAccountOpened = Object.values(userProfile.accounts || {}).some(balance => typeof balance === 'number' ? balance > 0 : Object.values(balance || {}).some(val => val > 0));
     const hasTransactions = userProfile.transactions && userProfile.transactions.length > 0;
 
-    // Debit card expiration logic
+    // Check for SberElite eligibility
+    const isSberElite = userProfile.creditScore >= 750 &&
+                       Object.values(userProfile.accounts || {}).some(balance => typeof balance === 'number' && balance >= 10000000);
+
+    // Debit card expiration and auto-renewal logic
     useEffect(() => {
         if (userProfile && userProfile.debitCard && auth.currentUser) {
             const cardExpiryDateISO = userProfile.debitCard.expiryDate;
@@ -28,42 +33,44 @@ const DashboardLayout = ({ userProfile, setCurrentView, db, appId, auth }) => {
 
             const cardExpiry = new Date(cardExpiryDateISO);
             const fiveDaysBeforeExpiry = new Date(cardExpiry);
-            fiveDaysBeforeExpiry.setDate(cardExpiry.getDate() - 5);
+            fiveDaysBeforeExpiry.setDate(cardExpiry.getDate() - 5); // Calculate 5 days before expiry
             const now = new Date();
 
+            // If current date is within 5 days of expiry and before expiry
             if (now >= fiveDaysBeforeExpiry && now < cardExpiry) {
-                // Simulate card renewal
+                // Simulate card renewal: extend expiry by 7 years
                 const newExpiryDate = new Date(cardExpiry);
-                newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 7); // Extend by 7 years
+                newExpiryDate.setFullYear(newExpiryDate.getFullYear() + 7);
                 const newExpiryMonth = String(newExpiryDate.getMonth() + 1).padStart(2, '0');
                 const newExpiryYear = String(newExpiryDate.getFullYear()).slice(-2);
 
                 const updatedDebitCard = {
                     ...userProfile.debitCard,
-                    expiry: `${newExpiryMonth}/${newExpiryYear}`,
-                    expiryDate: newExpiryDate.toISOString(), // Store as ISO string for date comparison
+                    expiry: `${newExpiryMonth}/${newExpiryYear}`, // Update formatted expiry
+                    expiryDate: newExpiryDate.toISOString(), // Update ISO string for future comparisons
                 };
 
                 const userDocRef = doc(db, `artifacts/${appId}/users`, auth.currentUser.uid);
+                // Update Firestore with the new debit card details
                 updateDoc(userDocRef, { debitCard: updatedDebitCard })
                     .then(() => console.log("Debit card renewed automatically."))
                     .catch(error => console.error("Error renewing debit card:", error));
             }
         }
-    }, [userProfile, db, appId, auth.currentUser]);
-
+    }, [userProfile, db, appId, auth.currentUser]); // Dependencies for this effect
 
     return (
         <div className="container mx-auto px-4 py-8">
             <h2 className="text-4xl font-extrabold mb-8 text-center drop-shadow-sm" style={{ color: COLORS.primaryAccent }}>🏛️ Your Client Dashboard</h2>
 
-            {/* Hero Section - Large Glassy Card */}
+            {/* Hero Section - Overall Balance */}
             <GlassCard className="p-10 mb-12 text-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#00FFAA10] to-[#0D0D0D] opacity-20 z-0"></div>
                 <div className="relative z-10">
                     <p className="text-xl font-semibold mb-3" style={{ color: COLORS.typography }}>Overall Balance</p>
                     <p className="font-bold text-6xl mb-4" style={{ color: COLORS.primaryAccent }}>{userProfile.balance.toFixed(2)} RUB</p>
                     <p className="text-lg mb-2" style={{ color: COLORS.typography }}>User ID / Identity: {userProfile.discordId}</p>
+                    <p className="text-lg mb-2" style={{ color: COLORS.typography }}>Bank ID: {userProfile.bankId || 'N/A'}</p> {/* Display Bank ID */}
                     {/* Credit Score only visible if credit card applied */}
                     {userProfile.hasCreditCard && (
                         <p className="text-lg mb-6" style={{ color: COLORS.typography }}>
@@ -175,6 +182,13 @@ const DashboardLayout = ({ userProfile, setCurrentView, db, appId, auth }) => {
                         <Shield color={COLORS.primaryAccent} size={30} className="mx-auto mb-2" />
                         <p className="font-semibold" style={{ color: COLORS.typography }}>Security</p>
                     </GlassCard>
+                    {/* SberElite Access Card */}
+                    {isSberElite && (
+                        <GlassCard className="p-4 text-center cursor-pointer hover:shadow-xl transition-shadow duration-300" style={{ boxShadow: `0 0 10px ${COLORS.primaryAccent}` }} onClick={() => alert('Welcome to SberElite! Enjoy premium benefits.')}>
+                            <Star color={COLORS.primaryAccent} size={30} className="mx-auto mb-2" />
+                            <p className="font-semibold" style={{ color: COLORS.primaryAccent }}>SberElite Access</p>
+                        </GlassCard>
+                    )}
                 </div>
             </section>
 
@@ -215,7 +229,7 @@ const DashboardLayout = ({ userProfile, setCurrentView, db, appId, auth }) => {
                         <div className="absolute inset-0 bg-gradient-to-br from-[#00FFAA10] to-[#0D0D0D] opacity-20 z-0"></div>
                         <div className="relative z-10 text-white">
                             <div className="flex justify-between items-start mb-4">
-                                <span className="text-lg font-semibold">Sberbank Debit Card</span>
+                                <span className="text-lg font-semibold">Sberbank Virtual Debit</span>
                                 <img src="https://placehold.co/40x25/00FFAA/0D0D0D?text=VISA" alt="Visa Logo" className="h-6" />
                             </div>
                             <p className="text-3xl font-mono tracking-wider mb-4">{userProfile.debitCard.number}</p>

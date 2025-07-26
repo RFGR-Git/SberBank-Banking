@@ -4,26 +4,29 @@ import { COLORS } from '../constants';
 import { UserRoundCog, PiggyBank, Briefcase, Landmark, CreditCard, TrendingUp, UserRoundSearch } from 'lucide-react';
 
 const OpenAccountPage = ({ userProfile, setCurrentView }) => {
+    // Define properties for each account type
     const accountTypes = [
-        { key: 'Personal', name: 'Personal Account (Standard)', icon: <UserRoundCog size={40} color={COLORS.primaryAccent} />, description: 'The basic, default account for any citizen. Holds wages, transfers, and currency.', appliesTo: 'All verified users', infoRequired: 'Name, KYC ID', approval: 'Auto-approved', page: 'open-personal' },
-        { key: 'Savings', name: 'Savings Account', icon: <PiggyBank size={40} color={COLORS.primaryAccent} />, description: 'Designed for long-term saving, interest accumulation, and stability.', appliesTo: 'Users w/ Personal Account', infoRequired: 'Link to personal account, account label', approval: 'Auto-approved', page: 'open-savings' },
+        { key: 'Personal', name: 'Personal Account (Standard)', icon: <UserRoundCog size={40} color={COLORS.primaryAccent} />, description: 'The basic, default account for any citizen. Holds wages, transfers, and currency.', appliesTo: 'All verified users', infoRequired: 'Name, KYC ID', approval: 'Admin approval', page: 'open-personal' }, // Changed to Admin approval
+        { key: 'Savings', name: 'Savings Account', icon: <PiggyBank size={40} color={COLORS.primaryAccent} />, description: 'Designed for long-term saving, interest accumulation, and stability.', appliesTo: 'Users w/ Personal Account', infoRequired: 'Link to personal account, account label', approval: 'Admin approval', page: 'open-savings' }, // Changed to Admin approval
         { key: 'Business', name: 'Business Account', icon: <Briefcase size={40} color={COLORS.primaryAccent} />, description: 'For business owners or legal entities. Separate from personal account.', appliesTo: 'Business owners or verified legal entities', infoRequired: 'Business name, license ID, director name', approval: 'Admin approval', page: 'open-business' },
-        { key: 'Government', name: 'Government Account', icon: <Landmark size={40} color={COLORS.primaryAccent} />, description: 'Used by ministries, agencies, and state-owned enterprises. Receives treasury funds.', appliesTo: 'Government ministers, agencies, SOEs', infoRequired: 'Ministry name, position, internal code', approval: 'Admin-only', page: 'open-government' },
+        { key: 'Government', name: 'Government Account', icon: <Landmark size={40} color={COLORS.primaryAccent} />, description: 'Used by ministries, agencies, and state-owned enterprises. Receives treasury funds.', appliesTo: 'Government ministers, agencies, SOEs', infoRequired: 'Ministry name, position, internal code', approval: 'Admin-only', page: 'open-government' }, // Corrected page link
         { key: 'CreditCard', name: 'Credit Card Account', icon: <CreditCard size={40} color={COLORS.primaryAccent} />, description: 'A credit-based line account, not a physical wallet. Linked to credit score.', appliesTo: 'Users w/ credit score ≥ 300', infoRequired: 'Employment info (IC), credit agreement', approval: 'Admin review or auto if score high', page: 'open-creditcard' },
         { key: 'Investment', name: 'Investment Account', icon: <TrendingUp size={40} color={COLORS.primaryAccent} />, description: 'For advanced users. Used for purchasing bonds, stocks, and tracking returns.', appliesTo: 'Verified, adult users', infoRequired: 'Risk profile, bank link, investment interest', approval: 'Auto-approved or flagged', page: 'open-investment', comingSoon: true },
         { key: 'Shadow', name: 'Shadow Account', icon: <UserRoundSearch size={40} color={COLORS.primaryAccent} />, description: 'Classified/Hidden account for espionage, secret state funding, or corrupt actors.', appliesTo: 'Espionage, secret ops, or corruption RP', infoRequired: 'None (admin backend only)', approval: 'Admin-only creation', page: 'open-shadow', blurred: true },
     ];
 
+    // Handle click on an account type card
     const handleOpenAccountClick = (account) => {
         if (account.comingSoon) {
             alert(`${account.name} is coming soon!`);
             return;
         }
+        // If it's a blurred account and user is not VIP, show alert
         if (account.blurred && !userProfile.isVIP) {
             alert('This account type is restricted to VIP customers only.');
             return;
         }
-        setCurrentView(account.page);
+        setCurrentView(account.page); // Navigate to the specific account opening page
     };
 
     return (

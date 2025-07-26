@@ -21,16 +21,21 @@ const SecurityIdentityVerificationLayout = () => {
                 </GlassCard>
             </section>
 
-            {/* Fraud Alerts / Risk Flags Section */}
+            {/* Fraud Alerts / Risk Flags Section - Removed hardcoded alert */}
             <section className="mb-12">
                 <h3 className="text-3xl font-bold mb-6" style={{ color: COLORS.typography }}>Fraud Alerts / Risk Flags</h3>
-                <GlassCard className="p-8">
-                    <ul className="space-y-4">
+                <GlassCard className="p-8 text-center">
+                    <p className="text-gray-400">Fraud alerts and risk flags will appear here based on your account activity.</p>
+                    {/* Future implementation: Display dynamic alerts based on user's `fraudFlags` array in userProfile */}
+                    {/* Example of how a dynamic alert might look: */}
+                    {/*
+                    <ul className="space-y-4 mt-4">
                         <li className="p-4 rounded-lg shadow-sm border border-red-500" style={{ backgroundColor: COLORS.tertiary }}>
-                            <p className="text-red-500 font-semibold">Alert: Unusual large transfer detected!</p>
-                            <p className="text-sm text-gray-400">Timestamp: 2023-10-27 11:00 AM</p>
+                            <p className="text-red-500 font-semibold">Alert: Suspicious login attempt detected!</p>
+                            <p className="text-sm text-gray-400">Timestamp: 2024-07-26 10:30 AM</p>
                         </li>
                     </ul>
+                    */}
                 </GlassCard>
             </section>
         </div>

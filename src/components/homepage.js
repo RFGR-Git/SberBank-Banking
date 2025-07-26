@@ -20,37 +20,47 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
     const [isRegistering, setIsRegistering] = useState(true);
     const [isAdminLogin, setIsAdminLogin] = useState(false);
 
+    // Function to generate a KYC code based on selected region and a unique ID
     const generateKycCode = (selectedRegion) => {
         const uniqueId = Math.floor(1000 + Math.random() * 9000); // 4-digit ID
-        const regionCode = REGION_CODES[selectedRegion] || 'UNK'; // UNK for unknown region
+        const regionCode = REGION_CODES[selectedRegion] || 'UNK'; // Use region code or 'UNK' for unknown
         const year = new Date().getFullYear();
         return `KYC-${uniqueId}-${regionCode}-${year}`;
     };
 
+    // Function to generate a unique 8-digit bank ID
+    const generateBankId = () => {
+        return Math.floor(10000000 + Math.random() * 90000000).toString();
+    };
+
+    // Handle user registration
     const handleUserRegister = async (e) => {
-        e.preventDefault();
+        e.preventDefault(); // Prevent default form submission
         if (password !== confirmPassword) {
             alert('Passwords do not match.');
             return;
         }
-        if (password.length < 6) { // Example complexity
+        if (password.length < 6) { // Basic password complexity check
             alert('Password must be at least 6 characters long.');
             return;
         }
 
         try {
-            // Firebase Auth requires an email format. Use a sanitized Discord ID for the email.
+            // Firebase Auth requires an email format. Convert Discord ID to an email-like string.
             const email = discordId.replace(/[^a-zA-Z0-9]/g, '') + "@sberbank.com";
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
             const newKycCode = generateKycCode(region);
-            const currentDate = new Date().toLocaleDateString('en-US'); // Consistent date format
+            const newBankId = generateBankId(); // Generate new bank ID
+            const currentDate = new Date().toLocaleDateString('en-US'); // Get current date in consistent format
 
+            // Create new user profile object with initial data
             const newUserProfile = {
                 uid: user.uid,
                 name: rpName,
                 discordId,
+                bankId: newBankId, // Store the generated bank ID
                 dob,
                 placeOfBirth,
                 region,
@@ -60,11 +70,11 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                 rpIdNumber,
                 kycCode: newKycCode,
                 dateJoined: currentDate,
-                balance: 0.00,
+                balance: 0.00, // Initial balance
                 creditScore: 360, // All new users start at 360
                 hasCreditCard: false,
                 debitCard: null,
-                accounts: {
+                accounts: { // Initialize all account types to 0
                     Personal: 0.00,
                     Savings: 0.00,
                     Business: 0.00,
@@ -73,38 +83,46 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                     CreditCard: 0.00,
                     Shadow: 0.00,
                 },
-                transactions: [],
-                budget: { income: 0, expenses: [] },
-                investments: [],
-                isVIP: false,
-                isAdmin: false, // Ensure regular users are not admins
+                transactions: [], // Empty array for transactions
+                budget: { income: 0, expenses: [] }, // Initial budget
+                investments: [], // Empty array for investments
+                isVIP: false, // Not VIP by default
+                isAdmin: false, // Not admin by default
+                loanHistory: [], // New: Track loan history for credit checks
+                missedPayments: 0, // New: Track missed payments for credit score
+                lastPaymentDate: new Date().toISOString(), // New: For tracking payment frequency
             };
 
+            // Save the new user profile to Firestore
             await setDoc(doc(db, `artifacts/${appId}/users`, user.uid), newUserProfile);
 
+            // Update parent component state to reflect login
             setUserProfile(newUserProfile);
             setIsLoggedIn(true);
             setIsAdminLoggedIn(false);
-            setCurrentView('dashboard');
-            alert('Registration successful! You can now open accounts from your dashboard.');
+            setCurrentView('dashboard'); // Navigate to dashboard
+            alert(`Registration successful! Your Bank ID is: ${newBankId}. You can now open accounts from your dashboard.`);
         } catch (error) {
             console.error("Error during registration:", error);
             alert(`Registration failed: ${error.message}`);
         }
     };
 
+    // Handle user login
     const handleUserLogin = async (e) => {
-        e.preventDefault();
+        e.preventDefault(); // Prevent default form submission
         if (!discordId || !password) {
             alert('Please enter Discord ID and Password.');
             return;
         }
 
         try {
+            // Convert Discord ID back to the email-like format for Firebase Auth
             const email = discordId.replace(/[^a-zA-Z0-9]/g, '') + "@sberbank.com";
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
+            // Fetch user profile from Firestore
             const userDocRef = doc(db, `artifacts/${appId}/users`, user.uid);
             const userDocSnap = await getDoc(userDocRef);
 
@@ -112,11 +130,11 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                 const userData = userDocSnap.data();
                 setUserProfile(userData);
                 setIsLoggedIn(true);
-                setIsAdminLoggedIn(userData.isAdmin || false); // Set admin status from Firestore
-                setCurrentView(userData.isAdmin ? 'admin-dashboard' : 'dashboard');
+                setIsAdminLoggedIn(userData.isAdmin || false); // Set admin status from Firestore data
+                setCurrentView(userData.isAdmin ? 'admin-dashboard' : 'dashboard'); // Navigate based on admin status
             } else {
                 alert('User profile not found. Please register.');
-                await signOut(auth); // Sign out the partial user
+                await signOut(auth); // Sign out the user if their profile is missing
             }
         } catch (error) {
             console.error("Error during login:", error);
@@ -124,11 +142,13 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
         }
     };
 
+    // Handle admin login
     const handleAdminLogin = async (e) => {
-        e.preventDefault();
-        const adminEmail = "admin@sberbank.com"; // Fixed admin email
+        e.preventDefault(); // Prevent default form submission
+        const adminEmail = "admin@sberbank.com"; // Fixed admin email for Firebase Auth
         const adminPass = "adminpass"; // Fixed admin password
 
+        // Check if provided credentials match the hardcoded admin credentials
         if (discordId !== 'Admin#0000' || password !== adminPass) {
             alert('Invalid admin credentials.');
             return;
@@ -137,32 +157,36 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
         try {
             let adminUser = null;
             try {
-                // Try to sign in the admin
+                // Attempt to sign in the admin user
                 const userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPass);
                 adminUser = userCredential.user;
             } catch (loginError) {
-                // If admin user not found, create it (first time setup)
+                // If admin user not found (first time setup), create it
                 if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/wrong-password') {
                     const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
                     adminUser = userCredential.user;
-                    // Set admin profile in Firestore
+                    // Set admin profile in Firestore upon creation
                     await setDoc(doc(db, `artifacts/${appId}/users`, adminUser.uid), {
                         uid: adminUser.uid,
                         name: 'Sberbank Admin',
                         discordId: 'Admin#0000',
+                        bankId: '00000000', // Fixed bank ID for admin
                         kycCode: 'KYC-ADMIN-SBR-2025',
                         dateJoined: new Date().toLocaleDateString('en-US'),
                         region: 'Headquarters',
                         isVIP: true, // Admins are VIP
                         isAdmin: true, // Mark as admin
-                        balance: 0.00, // Admin starts with 0, can add funds later
+                        balance: 0.00,
                         creditScore: 850,
                         hasCreditCard: true,
-                        debitCard: null, // Admin card can be generated later
+                        debitCard: null,
                         accounts: {
                             Personal: 0.00, Savings: 0.00, Business: 0.00, Government: 0.00, Investment: 0.00, CreditCard: 0.00, Shadow: 0.00
                         },
                         transactions: [], budget: { income: 0, expenses: [] }, investments: [],
+                        loanHistory: [],
+                        missedPayments: 0,
+                        lastPaymentDate: new Date().toISOString(),
                     });
                     alert('Admin account created and logged in.');
                 } else {
@@ -170,6 +194,7 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                 }
             }
 
+            // After successful sign-in (or creation), verify admin status from Firestore
             if (adminUser) {
                 const adminDocRef = doc(db, `artifacts/${appId}/users`, adminUser.uid);
                 const adminDocSnap = await getDoc(adminDocRef);
@@ -177,10 +202,10 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                     setUserProfile(adminDocSnap.data());
                     setIsLoggedIn(true);
                     setIsAdminLoggedIn(true);
-                    setCurrentView('admin-dashboard');
+                    setCurrentView('admin-dashboard'); // Navigate to admin dashboard
                 } else {
                     alert('Admin profile not found or not marked as admin. Please ensure correct credentials and admin role.');
-                    await signOut(auth);
+                    await signOut(auth); // Sign out if not a valid admin profile
                 }
             }
         } catch (error) {
@@ -189,12 +214,12 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
         }
     };
 
-
     return (
         <div className="container mx-auto px-4 py-16 flex items-center justify-center min-h-[calc(100vh-160px)]">
             <GlassCard className="p-10 w-full max-w-md text-center">
                 <h2 className="text-4xl font-extrabold mb-8 drop-shadow-sm" style={{ color: COLORS.primaryAccent }}>Welcome to Sberbank</h2>
 
+                {/* Toggle buttons for Register, Login, Admin Login */}
                 <div className="flex justify-center mb-6 space-x-4">
                     <button
                         onClick={() => { setIsRegistering(true); setIsAdminLogin(false); }}
@@ -219,7 +244,9 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                     </button>
                 </div>
 
+                {/* Conditional rendering of login/registration forms */}
                 {isAdminLogin ? (
+                    // Admin Login Form
                     <form onSubmit={handleAdminLogin} className="space-y-6">
                         <p className="text-lg mb-2" style={{ color: COLORS.typography }}>Admin Login</p>
                         <div>
@@ -257,6 +284,7 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                         </button>
                     </form>
                 ) : isRegistering ? (
+                    // User Registration Form
                     <form onSubmit={handleUserRegister} className="space-y-6">
                         <p className="text-lg mb-2" style={{ color: COLORS.typography }}>Create your new Sberbank website account.</p>
                         {/* Basic Roleplay Details */}
@@ -326,6 +354,7 @@ const HomePage = ({ setIsLoggedIn, setIsAdminLoggedIn, setUserProfile, setCurren
                         </button>
                     </form>
                 ) : (
+                    // User Login Form
                     <form onSubmit={handleUserLogin} className="space-y-6">
                         <p className="text-lg mb-2" style={{ color: COLORS.typography }}>Log in to your existing account.</p>
                         <div>

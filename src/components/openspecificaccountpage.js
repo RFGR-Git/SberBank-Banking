@@ -4,36 +4,38 @@ import GlassCard from './common/GlassCard';
 import { COLORS } from '../constants';
 
 const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrentView, db, appId, auth }) => {
-    const [formData, setFormData] = useState({ initialDeposit: '', discordMessageLink: '' });
-    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({ initialDeposit: '', discordMessageLink: '', collateralLink: '' }); // Added collateralLink
+    const [loading, setLoading] = useState(false); // State for loading indicator
 
+    // Helper function to generate random debit card details
     const generateDebitCardDetails = () => {
-        const num = Array(4).fill(0).map(() => Math.floor(1000 + Math.random() * 9000)).join(' ');
-        const issueDate = new Date('2005-01-01'); // Start date for all cards
+        const num = Array(4).fill(0).map(() => Math.floor(1000 + Math.random() * 9000)).join(' '); // 16-digit number
+        const issueDate = new Date('2005-01-01'); // Fixed issue date
         const expiryDate = new Date(issueDate);
         expiryDate.setFullYear(issueDate.getFullYear() + 7); // 7 years expiration
         const expiryMonth = String(expiryDate.getMonth() + 1).padStart(2, '0');
-        const expiryYear = String(expiryDate.getFullYear()).slice(-2);
-        const cvv = String(Math.floor(100 + Math.random() * 900));
-        const pin = String(Math.floor(1000 + Math.random() * 9000));
+        const expiryYear = String(expiryDate.getFullYear()).slice(-2); // Last two digits of year
+        const cvv = String(Math.floor(100 + Math.random() * 900)); // 3-digit CVV
+        const pin = String(Math.floor(1000 + Math.random() * 9000)); // 4-digit PIN
         return {
             number: num,
             expiry: `${expiryMonth}/${expiryYear}`,
             cvv,
             pin,
-            issueDate: issueDate.toISOString(),
-            expiryDate: expiryDate.toISOString(),
+            issueDate: issueDate.toISOString(), // Store as ISO string for date comparisons
+            expiryDate: expiryDate.toISOString(), // Store as ISO string for date comparisons
         };
     };
 
+    // Configuration for different account types
     const accountDetails = {
         Personal: {
             title: 'Open Personal Account (Standard)',
             info: 'The basic, default account for any citizen. Holds wages, transfers, and currency.',
-            fields: [], // Info already collected during registration
+            fields: [], // No additional fields needed, info collected during registration
             appliesTo: 'All verified users',
             infoRequired: 'Name, KYC ID, Initial Deposit, Discord Message Link',
-            approval: 'Auto-approved',
+            approval: 'Admin approval', // Changed to Admin approval
             onOpen: async (data) => {
                 setLoading(true);
                 const depositAmount = parseFloat(data.initialDeposit);
@@ -49,25 +51,22 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                 }
 
                 try {
-                    const userDocRef = doc(db, `artifacts/${appId}/users`, auth.currentUser.uid);
-                    await updateDoc(userDocRef, {
-                        [`accounts.Personal`]: depositAmount,
-                        balance: userProfile.balance + depositAmount,
-                        transactions: [...userProfile.transactions, {
-                            date: new Date().toLocaleDateString('en-US'),
-                            description: `Personal Account Opened with Initial Deposit`,
-                            amount: depositAmount,
-                            status: 'Complete',
-                            discordLink: data.discordMessageLink
-                        }],
-                        debitCard: generateDebitCardDetails(), // Generate debit card upon personal account opening
+                    // Submit request for admin approval
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/accountRequests`), {
+                        userId: auth.currentUser.uid,
+                        userName: userProfile.name,
+                        accountType: 'Personal',
+                        initialDeposit: depositAmount,
+                        discordMessageLink: data.discordMessageLink,
+                        status: 'Pending', // Set status to pending
+                        timestamp: new Date().toISOString()
                     });
-                    alert('Personal Account opened successfully with initial deposit!');
-                    setCurrentView('dashboard');
+                    alert('Personal Account application submitted successfully! Awaiting admin approval.');
+                    setCurrentView('dashboard'); // Navigate back to dashboard
                     return true;
                 } catch (error) {
-                    console.error("Error opening personal account:", error);
-                    alert(`Failed to open Personal Account: ${error.message}`);
+                    console.error("Error submitting personal account application:", error);
+                    alert(`Failed to submit Personal Account application: ${error.message}`);
                     return false;
                 } finally {
                     setLoading(false);
@@ -80,7 +79,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
             fields: [{ name: 'accountLabel', label: 'Account Label (e.g., "My Holiday Savings")', type: 'text', required: true }],
             appliesTo: 'Users w/ Personal Account',
             infoRequired: 'Link to personal account, account label, Initial Deposit, Discord Message Link',
-            approval: 'Auto-approved',
+            approval: 'Admin approval', // Changed to Admin approval
             onOpen: async (data) => {
                 setLoading(true);
                 if (userProfile.accounts.Personal === 0) {
@@ -101,24 +100,23 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                 }
 
                 try {
-                    const userDocRef = doc(db, `artifacts/${appId}/users`, auth.currentUser.uid);
-                    await updateDoc(userDocRef, {
-                        [`accounts.Savings`]: depositAmount,
-                        balance: userProfile.balance + depositAmount,
-                        transactions: [...userProfile.transactions, {
-                            date: new Date().toLocaleDateString('en-US'),
-                            description: `Savings Account Opened (${data.accountLabel}) with Initial Deposit`,
-                            amount: depositAmount,
-                            status: 'Complete',
-                            discordLink: data.discordMessageLink
-                        }],
+                    // Submit request for admin approval
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/accountRequests`), {
+                        userId: auth.currentUser.uid,
+                        userName: userProfile.name,
+                        accountType: 'Savings',
+                        initialDeposit: depositAmount,
+                        discordMessageLink: data.discordMessageLink,
+                        accountLabel: data.accountLabel,
+                        status: 'Pending', // Set status to pending
+                        timestamp: new Date().toISOString()
                     });
-                    alert(`Savings Account "${data.accountLabel}" opened successfully with initial deposit!`);
+                    alert(`Savings Account application for "${data.accountLabel}" submitted successfully! Awaiting admin approval.`);
                     setCurrentView('dashboard');
                     return true;
                 } catch (error) {
-                    console.error("Error opening savings account:", error);
-                    alert(`Failed to open Savings Account: ${error.message}`);
+                    console.error("Error submitting savings account application:", error);
+                    alert(`Failed to submit Savings Account application: ${error.message}`);
                     return false;
                 } finally {
                     setLoading(false);
@@ -135,7 +133,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
             ],
             appliesTo: 'Business owners or verified legal entities',
             infoRequired: 'Business name, license ID, director name, Initial Deposit, Discord Message Link',
-            approval: 'Admin approval',
+            approval: 'Admin approval', // Requires admin approval
             onOpen: async (data) => {
                 setLoading(true);
                 const depositAmount = parseFloat(data.initialDeposit);
@@ -151,7 +149,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                 }
 
                 try {
-                    // Add to a pending requests collection for admin approval
+                    // Add the request to a public collection for admin review
                     await addDoc(collection(db, `artifacts/${appId}/public/data/accountRequests`), {
                         userId: auth.currentUser.uid,
                         userName: userProfile.name,
@@ -161,7 +159,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                         businessName: data.businessName,
                         licenseId: data.licenseId,
                         directorName: data.directorName,
-                        status: 'Pending',
+                        status: 'Pending', // Set status to pending
                         timestamp: new Date().toISOString()
                     });
                     alert(`Business Account application for "${data.businessName}" submitted. Awaiting admin approval. Initial deposit of ${depositAmount} RUB noted.`);
@@ -186,7 +184,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
             ],
             appliesTo: 'Government ministers, agencies, SOEs',
             infoRequired: 'Ministry name, position, internal code, Initial Deposit, Discord Message Link',
-            approval: 'Admin-only',
+            approval: 'Admin-only', // Requires admin approval
             onOpen: async (data) => {
                 setLoading(true);
                 const depositAmount = parseFloat(data.initialDeposit);
@@ -202,7 +200,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                 }
 
                 try {
-                    // Add to a pending requests collection for admin approval
+                    // Add the request to a public collection for admin review
                     await addDoc(collection(db, `artifacts/${appId}/public/data/accountRequests`), {
                         userId: auth.currentUser.uid,
                         userName: userProfile.name,
@@ -244,24 +242,20 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                     setLoading(false);
                     return false;
                 }
-                if (userProfile.creditScore < 300) {
-                    alert('Your credit score is too low to apply for a credit card. Minimum 300 required.');
-                    setLoading(false);
-                    return false;
-                }
+
                 // Credit card doesn't take initial deposit as it's a line of credit
                 try {
-                    const userDocRef = doc(db, `artifacts/${appId}/users`, auth.currentUser.uid);
-                    await updateDoc(userDocRef, {
-                        hasCreditCard: true,
-                        [`accounts.CreditCard`]: 0.00, // Initial credit card balance is 0 (no credit used yet)
-                        transactions: [...userProfile.transactions, {
-                            date: new Date().toLocaleDateString('en-US'),
-                            description: `Credit Card Application Submitted`,
-                            amount: 0,
-                            status: 'Pending Approval',
-                        }],
+                    // Submit request for admin approval
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/creditCardRequests`), { // New collection for credit card requests
+                        userId: auth.currentUser.uid,
+                        userName: userProfile.name,
+                        creditScore: userProfile.creditScore,
+                        employmentInfo: data.employmentInfo,
+                        creditAgreement: data.creditAgreement,
+                        status: 'Pending', // Status will be updated by admin or automated check
+                        timestamp: new Date().toISOString()
                     });
+
                     alert('Credit Card application submitted. Check your dashboard for status updates (may be auto-approved based on score).');
                     setCurrentView('dashboard');
                     return true;
@@ -293,7 +287,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
             fields: [{ name: 'reason', label: 'Reason for Shadow Account (Requires Admin Approval)', type: 'textarea', required: true }],
             appliesTo: 'Espionage, secret ops, or corruption RP',
             infoRequired: 'None (admin backend only), Initial Deposit, Discord Message Link',
-            approval: 'Admin-only creation',
+            approval: 'Admin-only creation', // Admin-only creation
             onOpen: async (data) => {
                 setLoading(true);
                 if (!userProfile.isVIP) {
@@ -314,7 +308,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                 }
 
                 try {
-                    // Add to a pending requests collection for admin approval
+                    // Add the request to a public collection for admin review
                     await addDoc(collection(db, `artifacts/${appId}/public/data/accountRequests`), {
                         userId: auth.currentUser.uid,
                         userName: userProfile.name,
@@ -339,17 +333,20 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
         },
     };
 
-    const currentAccount = accountDetails[type];
+    const currentAccount = accountDetails[type]; // Get details for the current account type
 
+    // Handle form field changes
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await currentAccount.onOpen(formData);
+        await currentAccount.onOpen(formData); // Call the specific onOpen function for the account type
     };
 
+    // Render "Coming Soon" message if applicable
     if (currentAccount.comingSoon) {
         return (
             <div className="container mx-auto px-4 py-8 text-center">
@@ -368,6 +365,7 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
             <GlassCard className="p-8 max-w-2xl mx-auto">
                 <p className="text-lg mb-6" style={{ color: COLORS.typography }}>{currentAccount.info}</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Render dynamic fields based on account type */}
                     {currentAccount.fields.map(field => (
                         <div key={field.name}>
                             <label htmlFor={field.name} className="block text-lg font-medium mb-2" style={{ color: COLORS.typography }}>{field.label}</label>
@@ -378,7 +376,8 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                             )}
                         </div>
                     ))}
-                    {type !== 'CreditCard' && ( // Credit card doesn't require initial deposit
+                    {/* Initial Deposit and Discord Link fields (not required for Credit Card) */}
+                    {type !== 'CreditCard' && (
                         <>
                             <div>
                                 <label htmlFor="initialDeposit" className="block text-lg font-medium mb-2" style={{ color: COLORS.typography }}>Initial Deposit Amount (RUB)</label>
@@ -390,16 +389,25 @@ const OpenSpecificAccountPage = ({ type, userProfile, setUserProfile, setCurrent
                             </div>
                         </>
                     )}
+                    {/* Collateral Link for Loans (Conceptual for this page, actual loan application is in LoanCreditSystemLayout) */}
+                    {type === 'Loan' && ( // Assuming a 'Loan' type could be added here later
+                        <div>
+                            <label htmlFor="collateralLink" className="block text-lg font-medium mb-2" style={{ color: COLORS.typography }}>Collateral Discord Message Link (Optional/Required)</label>
+                            <input type="url" id="collateralLink" name="collateralLink" value={formData.collateralLink} onChange={handleChange} placeholder="https://discord.com/channels/..." className="w-full p-3 border border-gray-600 rounded-lg" style={{ backgroundColor: COLORS.secondaryAccent, color: COLORS.typography }} />
+                            <p className="text-sm text-gray-400 italic mt-1">Required for certain loan amounts/credit scores. Link to proof of asset.</p>
+                        </div>
+                    )}
                     <button
                         type="submit"
                         className="w-full font-bold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300"
                         style={{ backgroundColor: COLORS.primaryAccent, color: COLORS.background, boxShadow: `0 0 15px ${COLORS.buttonsGlow}` }}
-                        disabled={loading}
+                        disabled={loading} // Disable button while loading
                     >
                         {loading ? 'Submitting...' : 'Submit Application'}
                     </button>
                 </form>
 
+                {/* Application Details Table */}
                 <h3 className="text-2xl font-bold mt-8 mb-4" style={{ color: COLORS.primaryAccent }}>Application Details</h3>
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
