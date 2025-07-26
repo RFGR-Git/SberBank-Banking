@@ -918,9 +918,9 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Mass Role Editor:</span> Batch assign or remove roles (e.g., VIP, Investor, Partner).</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Bulk Account Export:</span> Export data by type: Personal / Gov / Business (Formats: CSV, XLSX).</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Interbank Transfer Log Viewer:</span> View pending, approved, and flagged transfers.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }>Dashboard Filtering Toggle:</span> Filter views by Account Type, Role Tier, Risk Status, Recent Activity.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Dashboard Filtering Toggle:</span> Filter views by Account Type, Role Tier, Risk Status, Recent Activity.</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Transaction Freeze Override:</span> Approve or deny auto-frozen transactions on flagged accounts.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }>Force Emergency Lockdown:</span> Temporarily lock all transfers system-wide for emergency review.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Force Emergency Lockdown:</span> Temporarily lock all transfers system-wide for emergency review.</li>
                         <button onClick={() => alert('Activating global lock... (Simulated)')} className="mt-4 font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200 bg-red-800 hover:bg-red-700" style={{ boxShadow: `0 0 10px rgba(255,0,0,0.7)` }}>Activate Global Lock</button>
                     </ul>
                 </GlassCard>
