@@ -75,7 +75,9 @@ const App = () => {
         });
 
         // No automatic sign-in here. User must log in via HomePage.
-        setAuthReady(true); // Mark auth as ready immediately if auth object exists
+        // authReady is set to true immediately if 'auth' object exists,
+        // allowing the HomePage to render and handle explicit login/registration.
+        setAuthReady(true); 
 
         return () => unsubscribe();
     }, []);
