@@ -1,35 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { doc, updateDoc, collection, query, where, getDocs, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore'; // Added onSnapshot
+import { doc, updateDoc, collection, query, where, getDocs, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import GlassCard from './common/GlassCard';
 import { COLORS } from '../constants';
-import { CheckCircle, Search, CreditCard, DollarSign, FileText, User, Shield, Settings, Zap, BarChart, Lock, Ban, Award, ClipboardList, TrendingUp, Landmark, Truck, Building, FileBadge, Coins, Package, MapPin } from 'lucide-react'; // Added more Lucide icons for new sections
+import { CheckCircle, Search, CreditCard, DollarSign, FileText, User, Shield, Settings, Zap, BarChart, Lock, Ban, Award, ClipboardList, TrendingUp, Landmark, Truck, Building, FileBadge, Coins, Package, MapPin } from 'lucide-react';
 
 const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
-    const [targetUserId, setTargetUserId] = useState(''); // For targeting users by Discord ID
+    const [targetUserId, setTargetUserId] = useState(''); // For targeting users by Discord ID or Bank ID
     const [newCreditScore, setNewCreditScore] = useState('');
     const [penaltyType, setPenaltyType] = useState('Missed Payment');
     const [kycSearchId, setKycSearchId] = useState(''); // For searching by Discord ID or KYC Code
     const [assignRoleUserId, setAssignRoleUserId] = useState(''); // Separate state for role assignment
     const [specialAccountType, setSpecialAccountType] = useState('VIP Client');
-    const [accountRequests, setAccountRequests] = useState([]); // State for pending account requests
-    const [creditCardRequests, setCreditCardRequests] = useState([]); // State for pending credit card requests
-    const [depositRequests, setDepositRequests] = useState([]); // State for pending deposit requests
-    const [withdrawalRequests, setWithdrawalRequests] = useState([]); // State for pending withdrawal requests
-    const [loanRequests, setLoanRequests] = useState([]); // State for pending loan requests
+    const [accountRequests, setAccountRequests] = useState([]);
+    const [creditCardRequests, setCreditCardRequests] = useState([]);
+    const [depositRequests, setDepositRequests] = useState([]);
+    const [withdrawalRequests, setWithdrawalRequests] = useState([]);
+    const [loanRequests, setLoanRequests] = useState([]);
 
-    const [searchedUserKyc, setSearchedUserKyc] = useState(null); // State for displaying searched user's KYC info
-    const [govAccountId, setGovAccountId] = useState(''); // For government deposits/withdrawals
-    const [govAmount, setGovAmount] = useState(''); // For government deposits/withdrawals
-    const [businessLinkUserId, setBusinessLinkUserId] = useState(''); // For linking business to user
-    const [businessRegId, setBusinessRegId] = useState(''); // For linking business to user
-    const [youthAccountId, setYouthAccountId] = useState(''); // For youth account graduation (removed from UI, but state exists)
+    const [searchedUserKyc, setSearchedUserKyc] = useState(null);
+    const [govAccountId, setGovAccountId] = useState('');
+    const [govAmount, setGovAmount] = useState('');
+    const [businessLinkUserId, setBusinessLinkUserId] = useState('');
+    const [businessRegId, setBusinessRegId] = useState('');
+    const [youthAccountId, setYouthAccountId] = useState('');
 
-    // Helper to generate debit card details (copied from OpenSpecificAccountPage)
     const generateDebitCardDetails = () => {
         const num = Array(4).fill(0).map(() => Math.floor(1000 + Math.random() * 9000)).join(' ');
         const issueDate = new Date('2005-01-01');
         const expiryDate = new Date(issueDate);
-        expiryDate.setFullYear(issueDate.getFullYear() + 7);
+        expiryDate.setFullYear(expiryDate.getFullYear() + 7);
         const expiryMonth = String(expiryDate.getMonth() + 1).padStart(2, '0');
         const expiryYear = String(expiryDate.getFullYear()).slice(-2);
         const cvv = String(Math.floor(100 + Math.random() * 900));
@@ -44,15 +43,13 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         };
     };
 
-    // Fetch all types of pending requests
     useEffect(() => {
         if (!db || !auth.currentUser) {
             console.log("AdminDashboardLayout: DB or auth.currentUser not ready for fetching requests.");
             return;
         }
-        console.log("AdminDashboardLayout: Current authenticated user UID:", auth.currentUser.uid); // <-- ADDED LOG
+        console.log("AdminDashboardLayout: Current authenticated user UID:", auth.currentUser.uid);
 
-        // Set up real-time listeners for all request types
         const unsubscribeAccountRequests = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/accountRequests`), where("status", "==", "Pending")), (snapshot) => {
             setAccountRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         }, (error) => console.error("AdminDashboardLayout: Error listening to account requests:", error));
@@ -81,26 +78,34 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             unsubscribeLoanRequests();
         };
 
-    }, [db, appId, auth.currentUser]); // Depend on db and appId to re-run if they change
+    }, [db, appId, auth.currentUser]);
 
-    // Generic function to find user by Discord ID or Bank ID
     const findUserByDiscordOrBankId = async (id) => {
         const usersRef = collection(db, `artifacts/${appId}/users`);
         let q;
-        if (id.includes('#') || id.length < 8) { // Heuristic: Discord ID contains # or is shorter than typical Bank ID
+
+        if (/^\d+$/.test(id)) {
             q = query(usersRef, where("discordId", "==", id));
-        } else { // Assume it's a Bank ID
+            const discordSnapshot = await getDocs(q);
+            if (!discordSnapshot.empty) {
+                return { id: discordSnapshot.docs[0].id, data: discordSnapshot.docs[0].data() };
+            }
             q = query(usersRef, where("bankId", "==", id));
-        }
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            return { id: querySnapshot.docs[0].id, data: querySnapshot.docs[0].data() };
+            const bankIdSnapshot = await getDocs(q);
+            if (!bankIdSnapshot.empty) {
+                return { id: bankIdSnapshot.docs[0].id, data: bankIdSnapshot.docs[0].data() };
+            }
+        } else {
+            q = query(usersRef, where("bankId", "==", id));
+            const bankIdSnapshot = await getDocs(q);
+            if (!bankIdSnapshot.empty) {
+                return { id: bankIdSnapshot.docs[0].id, data: bankIdSnapshot.docs[0].data() };
+            }
         }
         return null;
     };
 
 
-    // Handle approval or denial of an account request
     const handleApproveDenyAccountRequest = async (requestId, status) => {
         try {
             const requestDocRef = doc(db, `artifacts/${appId}/public/data/accountRequests`, requestId);
@@ -115,7 +120,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
             if (!currentUserSnap.exists()) {
                 alert('User for this request not found. Request cannot be processed.');
-                await deleteDoc(requestDocRef); // Clean up orphaned request
+                await deleteDoc(requestDocRef);
                 return;
             }
             const currentUserData = currentUserSnap.data();
@@ -138,7 +143,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                     transactions: newTransactions,
                 };
 
-                // Only generate debit card if it's a Personal account AND they don't already have one
                 if (requestData.accountType === 'Personal' && !currentUserData.debitCard) {
                     updateData.debitCard = generateDebitCardDetails();
                 }
@@ -147,15 +151,13 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             } else {
                 alert(`${requestData.accountType} account for ${requestData.userName} denied.`);
             }
-            await updateDoc(requestDocRef, { status: status }); // Update request status
-            // No need to manually filter state, onSnapshot will handle it
+            await updateDoc(requestDocRef, { status: status });
         } catch (error) {
             console.error(`Error ${status.toLowerCase()} account request:`, error);
             alert(`Failed to ${status.toLowerCase()} account request: ${error.message}`);
         }
     };
 
-    // Handle approval/denial of Credit Card Requests
     const handleApproveDenyCreditCardRequest = async (requestId, status) => {
         try {
             const requestDocRef = doc(db, `artifacts/${appId}/public/data/creditCardRequests`, requestId);
@@ -178,29 +180,28 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             let creditLimit = 0;
 
             if (status === 'Approved') {
-                // Determine credit limit based on credit score
                 if (requestData.creditScore >= 750) {
-                    creditLimit = 20000; // Premium
+                    creditLimit = 20000;
                     approvalMessage = `Credit Card approved for ${requestData.userName} with a ₽${creditLimit.toLocaleString()} limit (Premium).`;
                 } else if (requestData.creditScore >= 600) {
-                    creditLimit = 15000; // Standard
+                    creditLimit = 15000;
                     approvalMessage = `Credit Card approved for ${requestData.userName} with a ₽${creditLimit.toLocaleString()} limit.`;
                 } else if (requestData.creditScore >= 500) {
-                    creditLimit = 5000; // Low Limit / Manual Review
+                    creditLimit = 5000;
                     approvalMessage = `Credit Card approved for ${requestData.userName} with a ₽${creditLimit.toLocaleString()} limit (Manual Review).`;
                 } else {
-                    status = 'Denied'; // Override to denied if score is too low
+                    status = 'Denied';
                     approvalMessage = `Credit Card denied for ${requestData.userName} (Score too low: ${requestData.creditScore}).`;
                 }
 
                 if (status === 'Approved') {
                     await updateDoc(userDocRef, {
                         hasCreditCard: true,
-                        'accounts.CreditCard': creditLimit, // Set the initial credit limit as balance
+                        'accounts.CreditCard': creditLimit,
                         transactions: [...currentUserData.transactions, {
                             date: new Date().toLocaleDateString('en-US'),
                             description: `Credit Card Approved (Limit: ₽${creditLimit.toLocaleString()})`,
-                            amount: 0, // No direct fund transfer
+                            amount: 0,
                             status: 'Complete'
                         }]
                     });
@@ -217,7 +218,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle approval/denial of Deposit Requests
     const handleApproveDenyDepositRequest = async (requestId, status) => {
         try {
             const requestDocRef = doc(db, `artifacts/${appId}/public/data/depositRequests`, requestId);
@@ -240,7 +240,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                 const depositAmount = requestData.amount;
                 await updateDoc(userDocRef, {
                     balance: currentUserData.balance + depositAmount,
-                    'accounts.Personal': (currentUserData.accounts.Personal || 0) + depositAmount, // Assume deposit to personal
+                    'accounts.Personal': (currentUserData.accounts.Personal || 0) + depositAmount,
                     transactions: [...currentUserData.transactions, {
                         date: new Date().toLocaleDateString('en-US'),
                         description: `Deposit Approved (Proof: ${requestData.discordLink})`,
@@ -259,7 +259,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle approval/denial of Withdrawal Requests
     const handleApproveDenyWithdrawalRequest = async (requestId, status) => {
         try {
             const requestDocRef = doc(db, `artifacts/${appId}/public/data/withdrawalRequests`, requestId);
@@ -284,7 +283,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
                 if ((currentUserData.accounts[sourceAccount] || 0) < withdrawalAmount) {
                     alert(`User ${requestData.userName} has insufficient funds in ${sourceAccount} for this withdrawal. Denying.`);
-                    status = 'Denied'; // Force deny if funds are truly insufficient
+                    status = 'Denied';
                 } else {
                     await updateDoc(userDocRef, {
                         [`accounts.${sourceAccount}`]: (currentUserData.accounts[sourceAccount] || 0) - withdrawalAmount,
@@ -308,7 +307,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle approval/denial of Loan Requests
     const handleApproveDenyLoanRequest = async (requestId, status) => {
         try {
             const requestDocRef = doc(db, `artifacts/${appId}/public/data/loanRequests`, requestId);
@@ -328,14 +326,13 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             const currentUserData = currentUserSnap.data();
 
             if (status === 'Approved') {
-                // Check if user already has an active loan of this type (if limited)
                 if (requestData.loanType === 'Personal Loan' && (currentUserData.loanHistory || []).some(loan => loan.type === 'Personal Loan' && loan.status === 'Active')) {
                     alert(`User ${requestData.userName} already has an active Personal Loan. Denying this request.`);
-                    status = 'Denied'; // Force deny if already has an active personal loan
+                    status = 'Denied';
                 } else {
                     const loanAmount = requestData.amount;
                     const newLoanEntry = {
-                        id: requestId, // Link loan history to request ID
+                        id: requestId,
                         type: requestData.loanType,
                         amount: loanAmount,
                         repaymentPeriod: requestData.repaymentPeriod,
@@ -344,21 +341,20 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                         downPayment: requestData.downPayment || 0,
                         propertyRegion: requestData.propertyRegion || '',
                         dateIssued: new Date().toLocaleDateString('en-US'),
-                        status: 'Active', // Mark as active
-                        // Simulate monthly payment calculation for display
+                        status: 'Active',
                         monthlyPayment: (loanAmount * (requestData.interestRate / 12 * Math.pow(1 + requestData.interestRate / 12, requestData.repaymentPeriod)) / (Math.pow(1 + requestData.interestRate / 12, requestData.repaymentPeriod) - 1)) || 0,
                     };
 
                     await updateDoc(userDocRef, {
                         balance: currentUserData.balance + loanAmount,
-                        'accounts.Personal': (currentUserData.accounts.Personal || 0) + loanAmount, // Loans typically go to personal account
+                        'accounts.Personal': (currentUserData.accounts.Personal || 0) + loanAmount,
                         transactions: [...currentUserData.transactions, {
                             date: new Date().toLocaleDateString('en-US'),
                             description: `Loan Approved: ${requestData.loanType} (ID: ${requestId})`,
                             amount: loanAmount,
                             status: 'Complete'
                         }],
-                        loanHistory: [...(currentUserData.loanHistory || []), newLoanEntry] // Add to loan history
+                        loanHistory: [...(currentUserData.loanHistory || []), newLoanEntry]
                     });
                     alert(`${requestData.loanType} loan for ${requestData.userName} approved for ₽${loanAmount.toLocaleString()}.`);
                 }
@@ -372,7 +368,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-
     const handleFetchKycInfo = async (e) => {
         e.preventDefault();
         if (!kycSearchId) {
@@ -382,9 +377,9 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         try {
             const foundUser = await findUserByDiscordOrBankId(kycSearchId);
             if (foundUser) {
-                setSearchedUserKyc(foundUser.data); // Set found user data to state
+                setSearchedUserKyc(foundUser.data);
             } else {
-                setSearchedUserKyc(null); // Reset if not found
+                setSearchedUserKyc(null);
                 alert('User not found.');
             }
         } catch (error) {
@@ -393,7 +388,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle updating a user's credit score
     const handleUpdateCreditScore = async (e) => {
         e.preventDefault();
         const score = parseInt(newCreditScore);
@@ -410,11 +404,10 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             const foundUser = await findUserByDiscordOrBankId(targetUserId);
             if (foundUser) {
                 const userDocRef = doc(db, `artifacts/${appId}/users`, foundUser.id);
-                await updateDoc(userDocRef, { creditScore: score }); // Update credit score in Firestore
+                await updateDoc(userDocRef, { creditScore: score });
                 alert(`Credit score for ${targetUserId} updated to ${score}.`);
                 setNewCreditScore('');
                 setTargetUserId('');
-                // If the searched user's KYC info is displayed, update it
                 if (searchedUserKyc && (searchedUserKyc.discordId === targetUserId || searchedUserKyc.bankId === targetUserId)) {
                     setSearchedUserKyc(prev => ({ ...prev, creditScore: score }));
                 }
@@ -427,7 +420,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle freezing a user's account
     const handleFreezeAccount = async () => {
         if (!targetUserId) {
             alert('Please enter a User ID to freeze.');
@@ -437,7 +429,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             const foundUser = await findUserByDiscordOrBankId(targetUserId);
             if (foundUser) {
                 const userDocRef = doc(db, `artifacts/${appId}/users`, foundUser.id);
-                await updateDoc(userDocRef, { isFrozen: true }); // Set isFrozen flag to true
+                await updateDoc(userDocRef, { isFrozen: true });
                 alert(`Account for ${targetUserId} frozen.`);
                 setTargetUserId('');
             } else {
@@ -449,7 +441,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle applying a penalty to a user's credit score
     const handleApplyPenalty = async () => {
         if (!targetUserId) {
             alert('Please enter a User ID to apply penalty.');
@@ -461,7 +452,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                 const userDocRef = doc(db, `artifacts/${appId}/users`, foundUser.id);
                 const currentScore = foundUser.data.creditScore;
                 let penaltyAmount = 0;
-                // Determine penalty amount based on type
                 switch (penaltyType) {
                     case 'Missed Payment': penaltyAmount = 15; break;
                     case 'Loan Default': penaltyAmount = 25; break;
@@ -469,11 +459,10 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                     case 'Flagged by Auditor': penaltyAmount = 30; break;
                     default: break;
                 }
-                const newScore = Math.max(300, currentScore - penaltyAmount); // Ensure score doesn't go below 300
-                await updateDoc(userDocRef, { creditScore: newScore }); // Update credit score
+                const newScore = Math.max(300, currentScore - penaltyAmount);
+                await updateDoc(userDocRef, { creditScore: newScore });
                 alert(`Penalty "${penaltyType}" applied to ${targetUserId}. Credit score updated to ${newScore}.`);
                 setTargetUserId('');
-                // If the searched user's KYC info is displayed, update it
                 if (searchedUserKyc && (searchedUserKyc.discordId === targetUserId || searchedUserKyc.bankId === targetUserId)) {
                     setSearchedUserKyc(prev => ({ ...prev, creditScore: newScore }));
                 }
@@ -486,7 +475,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle assigning a special role to a user
     const handleAssignRole = async () => {
         if (!assignRoleUserId) {
             alert('Please enter a User ID to assign role.');
@@ -496,7 +484,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             const foundUser = await findUserByDiscordOrBankId(assignRoleUserId);
             if (foundUser) {
                 const userDocRef = doc(db, `artifacts/${appId}/users`, foundUser.id);
-                // Update specialRole and isVIP flag
                 await updateDoc(userDocRef, { specialRole: specialAccountType, isVIP: specialAccountType === 'VIP Client' });
                 alert(`Special role "${specialAccountType}" assigned to ${assignRoleUserId}.`);
                 setAssignRoleUserId('');
@@ -509,7 +496,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle banning a user
     const handleBanUser = async () => {
         if (!targetUserId) {
             alert('Please enter a User ID to ban.');
@@ -519,7 +505,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             const foundUser = await findUserByDiscordOrBankId(targetUserId);
             if (foundUser) {
                 const userDocRef = doc(db, `artifacts/${appId}/users`, foundUser.id);
-                await updateDoc(userDocRef, { isBanned: true }); // Set isBanned flag to true
+                await updateDoc(userDocRef, { isBanned: true });
                 alert(`User ${targetUserId} banned.`);
                 setTargetUserId('');
             } else {
@@ -531,7 +517,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle Government Deposit/Withdrawal
     const handleGovTransaction = async (type) => {
         const amount = parseFloat(govAmount);
         if (isNaN(amount) || amount <= 0 || !govAccountId) {
@@ -539,9 +524,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             return;
         }
         try {
-            const foundUser = await findUserByDiscordOrBankId(govAccountId); // Assuming gov accounts also have a bankId or discordId
-            // A more robust check would be to verify if the foundUser.data.accountType is indeed 'Government'
-            // For now, we'll proceed if user is found.
+            const foundUser = await findUserByDiscordOrBankId(govAccountId);
             if (!foundUser) {
                 alert('Government Account not found.');
                 return;
@@ -558,7 +541,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                 newGovBalance += amount;
                 newOverallBalance += amount;
                 description = `Government Deposit by Admin`;
-            } else { // withdrawal
+            } else {
                 if (currentGovBalance < amount) {
                     alert('Insufficient funds in Government Account.');
                     return;
@@ -587,7 +570,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
     };
 
-    // Handle linking business to user
     const handleLinkBusiness = async () => {
         if (!businessLinkUserId || !businessRegId) {
             alert('Please enter both User ID and Business Registration ID.');
@@ -598,8 +580,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             if (foundUser) {
                 const userDocRef = doc(db, `artifacts/${appId}/users`, foundUser.id);
                 await updateDoc(userDocRef, {
-                    businessRegistrationId: businessRegId, // Add a new field for business registration
-                    // Optionally, set a flag if this user is a business owner
+                    businessRegistrationId: businessRegId,
                     isBusinessOwner: true
                 });
                 alert(`Business Registration ID ${businessRegId} linked to user ${businessLinkUserId}.`);
@@ -613,17 +594,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
             alert(`Failed to link business: ${error.message}`);
         }
     };
-
-    // Handle Youth Account Graduation (Placeholder - removed from UI but keeping function for now)
-    // const handleGraduateYouthAccount = async () => {
-    //     if (!youthAccountId) {
-    //         alert('Please enter a Youth Account ID.');
-    //         return;
-    //     }
-    //     alert(`Simulating graduation for Youth Account ${youthAccountId}. (Functionality not fully implemented)`);
-    //     setYouthAccountId('');
-    // };
-
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -733,10 +703,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                                 <li key={request.id} className="p-3 rounded-lg flex flex-col items-start" style={{ backgroundColor: COLORS.tertiary }}>
                                     <div className="flex justify-between w-full mb-2">
                                         <span>{request.userName} - {request.loanType} Request: {request.amount?.toFixed(2) || 0} RUB</span>
-                                        <div className="space-x-2">
-                                            <button onClick={() => handleApproveDenyLoanRequest(request.id, 'Approved')} className="px-4 py-1 rounded-full bg-green-600 text-white text-sm">Approve</button>
-                                            <button onClick={() => handleApproveDenyLoanRequest(request.id, 'Denied')} className="px-4 py-1 rounded-full bg-red-600 text-white text-sm">Deny</button>
-                                        </div>
                                     </div>
                                     <p className="text-sm text-gray-400">Credit Score: {request.creditScore}, Term: {request.repaymentPeriod} months, Rate: {(request.interestRate * 100).toFixed(2)}%</p>
                                     {request.collateralLink && (
@@ -745,6 +711,10 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                                     {request.loanType === 'Mortgage Loan' && (
                                         <p className="text-sm text-gray-400">Down Payment: {request.downPayment?.toFixed(2) || 0} RUB, Property Region: {request.propertyRegion}</p>
                                     )}
+                                    <div className="space-x-2 mt-2">
+                                        <button onClick={() => handleApproveDenyLoanRequest(request.id, 'Approved')} className="px-4 py-1 rounded-full bg-green-600 text-white text-sm">Approve</button>
+                                        <button onClick={() => handleApproveDenyLoanRequest(request.id, 'Denied')} className="px-4 py-1 rounded-full bg-red-600 text-white text-sm">Deny</button>
+                                    </div>
                                 </li>
                             ))}
                         </ul>
@@ -764,7 +734,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                             <input type="text" placeholder="User Discord ID or Bank ID" value={kycSearchId} onChange={(e) => setKycSearchId(e.target.value)} className="w-full p-3 border border-gray-600 rounded-lg" style={{ backgroundColor: COLORS.secondaryAccent, color: COLORS.typography }} />
                             <button type="submit" className="w-full font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200" style={{ backgroundColor: COLORS.primaryAccent, color: COLORS.background, boxShadow: `0 0 10px ${COLORS.buttonsGlow}` }}>Fetch Info</button>
                         </form>
-                        {searchedUserKyc && ( // Display KYC info if a user is found
+                        {searchedUserKyc && (
                             <div className="mt-4 p-4 rounded-lg text-sm" style={{ backgroundColor: COLORS.tertiary, color: COLORS.typography }}>
                                 <p className="font-semibold" style={{ color: COLORS.primaryAccent }}>KYC Details for {searchedUserKyc.discordId}:</p>
                                 <p>Full Name: {searchedUserKyc.name}</p>
@@ -773,7 +743,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                                 <p>Region: {searchedUserKyc.region}</p>
                                 <p>Date Joined: {searchedUserKyc.dateJoined}</p>
                                 <p>Credit Score: {searchedUserKyc.creditScore}</p>
-                                {/* <button className="mt-3 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-sm">Edit KYC</button> */}
                             </div>
                         )}
                     </GlassCard>
@@ -949,9 +918,9 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Mass Role Editor:</span> Batch assign or remove roles (e.g., VIP, Investor, Partner).</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Bulk Account Export:</span> Export data by type: Personal / Gov / Business (Formats: CSV, XLSX).</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Interbank Transfer Log Viewer:</span> View pending, approved, and flagged transfers.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Dashboard Filtering Toggle:</span> Filter views by Account Type, Role Tier, Risk Status, Recent Activity.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }>Dashboard Filtering Toggle:</span> Filter views by Account Type, Role Tier, Risk Status, Recent Activity.</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Transaction Freeze Override:</span> Approve or deny auto-frozen transactions on flagged accounts.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Force Emergency Lockdown:</span> Temporarily lock all transfers system-wide for emergency review.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }>Force Emergency Lockdown:</span> Temporarily lock all transfers system-wide for emergency review.</li>
                         <button onClick={() => alert('Activating global lock... (Simulated)')} className="mt-4 font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200 bg-red-800 hover:bg-red-700" style={{ boxShadow: `0 0 10px rgba(255,0,0,0.7)` }}>Activate Global Lock</button>
                     </ul>
                 </GlassCard>
