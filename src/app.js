@@ -1,225 +1,233 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from './firebaseConfig'; // Import auth and db from firebaseConfig
-import { onAuthStateChanged, signOut } from 'firebase/auth'; // Removed signInAnonymously, signInWithCustomToken
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-
-import Header from './components/layout/Header';
-import Footer from './components/layout/Footer';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import HomePage from './components/HomePage';
 import DashboardLayout from './components/DashboardLayout';
-import OpenAccountPage from './components/OpenAccountPage';
-import OpenSpecificAccountPage from './components/OpenSpecificAccountPage';
-import BankingServicesLayout from './components/BankingServicesLayout';
-import LoanCreditSystemLayout from './components/LoanCreditSystemLayout';
-import BusinessBankingLayout from './components/BusinessBankingLayout';
-import CardDigitalPaymentSystemLayout from './components/CardDigitalPaymentSystemLayout';
-import FinancialReportsAndToolsLayout from './components/FinancialReportsAndToolsLayout';
-import SecurityIdentityVerificationLayout from './components/SecurityIdentityVerificationLayout';
-import GovernmentPortalLayout from './components/GovernmentPortalLayout';
 import AdminDashboardLayout from './components/AdminDashboardLayout';
+import { COLORS } from './constants'; // Assuming COLORS is defined here
+import GlassCard from './components/common/GlassCard'; // Make sure this path is correct
 
-import { COLORS } from './constants';
-
-// The __app_id is provided by the Canvas environment. For local hosting, a default is used.
+// Firebase global variables (provided by Canvas environment)
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-const App = () => {
-    const [currentView, setCurrentView] = useState('home');
-    const [navigationHistory, setNavigationHistory] = useState(['home']);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-    const [userProfile, setUserProfile] = useState(null);
-    const [authReady, setAuthReady] = useState(false); // State to track if Firebase auth is initialized
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-    // Effect for Firebase Authentication state changes
+function App() {
+    const [userProfile, setUserProfile] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [showLogin, setShowLogin] = useState(false); // State to control login form visibility
+    const [loginDiscordId, setLoginDiscordId] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [showRegister, setShowRegister] = useState(false); // State to control registration form visibility
+    const [registerName, setRegisterName] = useState('');
+    const [registerDiscordId, setRegisterDiscordId] = useState('');
+    const [registerRegion, setRegisterRegion] = useState('');
+    const [registerPassword, setRegisterPassword] = useState('');
+    const [registerInitialDeposit, setRegisterInitialDeposit] = useState('');
+
     useEffect(() => {
-        if (!auth) {
-            setAuthReady(true);
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDocRef = doc(db, `artifacts/${appId}/users`, user.uid);
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    setUserProfile(docSnap.data());
+                } else {
+                    // If user exists in auth but not in Firestore, might be a new anonymous user
+                    // or a deleted user. For now, we'll treat them as needing to register/login.
+                    setUserProfile(null);
+                    setShowLogin(true); // Show login if no profile found
+                }
+            } else {
+                setUserProfile(null);
+                setShowLogin(true); // Show login if no user is authenticated
+            }
+            setLoading(false);
+        });
+
+        const signIn = async () => {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Error signing in:", error);
+                alert("Failed to sign in. Please try again.");
+            }
+        };
+
+        signIn(); // Attempt to sign in on app load
+
+        return () => unsubscribe();
+    }, []); // Empty dependency array means this runs once on mount
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            // In a real app, you'd verify password against a stored hash.
+            // For this simulation, we'll just find the user by Discord ID and check if password matches (conceptually).
+            const usersRef = collection(db, `artifacts/${appId}/users`);
+            const q = query(usersRef, where("discordId", "==", loginDiscordId));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data();
+                // Conceptual password check (replace with actual bcrypt/hashing in production)
+                if (userData.password === loginPassword) { // DANGER: Never store plain passwords in production
+                    setUserProfile(userData);
+                    setShowLogin(false);
+                    alert('Login successful!');
+                } else {
+                    alert('Invalid Discord ID or Password.');
+                }
+            } else {
+                alert('User not found. Please register or check your Discord ID.');
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            alert(`Login failed: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        if (parseFloat(registerInitialDeposit) < 100) {
+            alert('Initial deposit must be at least 100 RUB.');
+            setLoading(false);
             return;
         }
 
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                console.log("App.js: User authenticated:", user.uid);
-                const userDocRef = doc(db, `artifacts/${appId}/users`, user.uid);
-                const userDocSnap = await getDoc(userDocRef);
-
-                if (userDocSnap.exists()) {
-                    const userData = userDocSnap.data();
-                    setUserProfile(userData);
-                    setIsLoggedIn(true);
-                    if (userData.isAdmin) {
-                        setIsAdminLoggedIn(true);
-                        console.log("App.js: Admin user detected. isAdminLoggedIn set to true.");
-                        setCurrentView('admin-dashboard');
-                    } else {
-                        setIsAdminLoggedIn(false);
-                        console.log("App.js: Regular user detected. isAdminLoggedIn set to false.");
-                        setCurrentView('dashboard');
-                    }
-                } else {
-                    console.warn("App.js: User document not found for authenticated user:", user.uid);
-                    setIsLoggedIn(false);
-                    setUserProfile(null);
-                    setCurrentView('home');
-                    await signOut(auth);
-                }
-            } else {
-                console.log("App.js: No user authenticated.");
-                setIsLoggedIn(false);
-                setIsAdminLoggedIn(false);
-                setUserProfile(null);
-                setCurrentView('home');
+        try {
+            // Check if Discord ID or Bank ID already exists
+            const usersRef = collection(db, `artifacts/${appId}/users`);
+            const qDiscord = query(usersRef, where("discordId", "==", registerDiscordId));
+            const discordSnapshot = await getDocs(qDiscord);
+            if (!discordSnapshot.empty) {
+                alert('A user with this Discord ID already exists.');
+                setLoading(false);
+                return;
             }
-            setAuthReady(true);
-        });
 
-        // No automatic sign-in here. User must log in via HomePage.
-        // authReady is set to true immediately if 'auth' object exists,
-        // allowing the HomePage to render and handle explicit login/registration.
-        setAuthReady(true); 
+            // Generate a simple Bank ID (e.g., SBR-BANK-XXXX)
+            const bankId = `SBR-BANK-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+            const kycCode = `KYC-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
-        return () => unsubscribe();
-    }, []);
+            const newUserId = auth.currentUser.uid; // Use Firebase Auth UID as the document ID
 
-    // Effect for real-time user profile updates from Firestore
-    useEffect(() => {
-        if (!authReady || !isLoggedIn || !auth.currentUser || !db) return;
+            const newProfile = {
+                id: newUserId, // Store the Firebase Auth UID
+                name: registerName,
+                discordId: registerDiscordId,
+                bankId: bankId,
+                kycCode: kycCode,
+                region: registerRegion,
+                password: registerPassword, // DANGER: Never store plain passwords in production
+                balance: 0, // Initial balance before deposit is processed
+                accounts: {}, // Accounts will be populated upon approval
+                transactions: [],
+                dateJoined: new Date().toLocaleDateString('en-US'),
+                creditScore: 500, // Default credit score
+                hasCreditCard: false,
+                isFrozen: false, // Not frozen by default
+                specialRole: 'User', // Default role
+                isBusinessOwner: false,
+                businessRegistrationId: null, // New field for business linking
+                loanHistory: [],
+                isLoanBlacklisted: false,
+                isCreditFrozen: false, // For credit overuse penalties
+                creditFreezeEndDate: null,
+                isCreditCardSuspended: false,
+                creditCardSuspensionEndDate: null,
+                newLoanBlockedEndDate: null,
+                isSuspicious: false,
+                triggerInternalAffairs: false
+            };
 
-        const userDocRef = doc(db, `artifacts/${appId}/users`, auth.currentUser.uid);
-        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setUserProfile(docSnap.data());
-            } else {
-                console.log("App.js: User profile no longer exists in Firestore.");
-                setIsLoggedIn(false);
-                setIsAdminLoggedIn(false);
-                setUserProfile(null);
-                setCurrentView('home');
-            }
-        }, (error) => {
-            console.error("App.js: Error listening to user profile:", error);
-        });
+            await setDoc(doc(db, `artifacts/${appId}/users`, newUserId), newProfile);
 
-        return () => unsubscribe();
-    }, [authReady, isLoggedIn, auth.currentUser?.uid]);
+            // Submit an account creation request for admin approval
+            const accountRequestData = {
+                userId: newUserId,
+                userName: registerName,
+                discordId: registerDiscordId,
+                accountType: 'Personal', // Default to personal account on registration
+                initialDeposit: parseFloat(registerInitialDeposit),
+                status: 'Pending',
+                timestamp: new Date().toISOString(),
+                discordMessageLink: `https://discord.com/channels/@me/${registerDiscordId}` // Example link for proof
+            };
+            await addDoc(collection(db, `artifacts/${appId}/public/data/accountRequests`), accountRequestData);
 
-    // Navigation functions
-    const navigateTo = (view) => {
-        setNavigationHistory(prev => [...prev, view]);
-        setCurrentView(view);
-    };
 
-    const goBack = () => {
-        setNavigationHistory(prev => {
-            const newHistory = prev.slice(0, prev.length - 1);
-            if (newHistory.length > 0) {
-                setCurrentView(newHistory[newHistory.length - 1]);
-            } else {
-                setCurrentView('home');
-            }
-            return newHistory;
-        });
-    };
+            setUserProfile(newProfile); // Set profile immediately, but account is pending approval
+            setShowRegister(false);
+            setShowLogin(false);
+            alert('Registration successful! Your account is pending admin approval for initial deposit and personal account creation.');
 
-    const handleHomeClick = () => {
-        setNavigationHistory(['home']);
-        setCurrentView('home');
-    };
-
-    // Handle user sign out
-    const handleSignOut = async () => {
-        if (auth) {
-            try {
-                await signOut(auth);
-                console.log("App.js: User signed out.");
-            } catch (error) {
-                console.error("App.js: Error signing out:", error);
-            }
+        } catch (error) {
+            console.error("Registration error:", error);
+            alert(`Registration failed: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
-        setIsLoggedIn(false);
-        setIsAdminLoggedIn(false);
-        setUserProfile(null);
-        handleHomeClick();
     };
 
-    // Conditional rendering of views based on login status and currentView state
-    const renderCurrentView = () => {
-        if (!authReady) {
-            return <div className="text-center py-16 text-xl" style={{ color: COLORS.typography }}>Loading application...</div>;
-        }
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: COLORS.background, color: COLORS.typography }}>
+                <p className="text-xl">Loading application...</p>
+            </div>
+        );
+    }
 
-        if (!isLoggedIn && currentView === 'home') {
-            return (
-                <HomePage
-                    setIsLoggedIn={setIsLoggedIn}
-                    setIsAdminLoggedIn={setIsAdminLoggedIn}
-                    setUserProfile={setUserProfile}
-                    setCurrentView={navigateTo}
-                    auth={auth}
-                    db={db}
-                    appId={appId}
-                />
-            );
-        } else if (isLoggedIn && !isAdminLoggedIn && userProfile) {
-            switch (currentView) {
-                case 'dashboard':
-                    return <DashboardLayout userProfile={userProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-                case 'open-account':
-                    return <OpenAccountPage userProfile={userProfile} setUserProfile={setUserProfile} setCurrentView={navigateTo} />;
-                case 'banking-services':
-                    return <BankingServicesLayout userProfile={userProfile} setUserProfile={setUserProfile} db={db} appId={appId} auth={auth} />;
-                case 'loans-credit':
-                    return <LoanCreditSystemLayout userProfile={userProfile} setUserProfile={setUserProfile} db={db} appId={appId} auth={auth} />;
-                case 'business-banking':
-                    return <BusinessBankingLayout userProfile={userProfile} db={db} appId={appId} auth={auth} />;
-                case 'cards-payments':
-                    return <CardDigitalPaymentSystemLayout userProfile={userProfile} setUserProfile={setUserProfile} db={db} appId={appId} auth={auth} />;
-                case 'reports-tools':
-                    return <FinancialReportsAndToolsLayout userProfile={userProfile} setUserProfile={setUserProfile} db={db} appId={appId} auth={auth} />;
-                case 'security':
-                    return <SecurityIdentityVerificationLayout />;
-                case 'government-portal':
-                    return <GovernmentPortalLayout />;
-                case 'open-personal':
-                    return <OpenSpecificAccountPage type="Personal" userProfile={userProfile} setUserProfile={setUserProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-                case 'open-savings':
-                    return <OpenSpecificAccountPage type="Savings" userProfile={userProfile} setUserProfile={setUserProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-                case 'open-business':
-                    return <OpenSpecificAccountPage type="Business" userProfile={userProfile} setUserProfile={setUserProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-                case 'open-creditcard':
-                    return <OpenSpecificAccountPage type="CreditCard" userProfile={userProfile} setUserProfile={setUserProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-                case 'open-investment':
-                    return <OpenSpecificAccountPage type="Investment" userProfile={userProfile} setUserProfile={setUserProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-                case 'open-shadow':
-                    return <OpenSpecificAccountPage type="Shadow" userProfile={userProfile} setUserProfile={setUserProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-                default:
-                    return <DashboardLayout userProfile={userProfile} setCurrentView={navigateTo} db={db} appId={appId} auth={auth} />;
-            }
-        } else if (isAdminLoggedIn && userProfile) {
-            return <AdminDashboardLayout setUserProfile={setUserProfile} db={db} appId={appId} auth={auth} />;
-        }
-        return null;
-    };
+    // Render Admin Dashboard if user has 'Admin' or 'Super Admin' role
+    if (userProfile && (userProfile.specialRole === 'Admin' || userProfile.specialRole === 'Super Admin')) {
+        return <AdminDashboardLayout setUserProfile={setUserProfile} db={db} appId={appId} auth={auth} userProfile={userProfile} />;
+    }
 
+    // Render User Dashboard if user is logged in and not an admin
+    if (userProfile) {
+        return <DashboardLayout userProfile={userProfile} setUserProfile={setUserProfile} db={db} appId={appId} auth={auth} />;
+    }
+
+    // Render Home Page with Login/Register forms if not logged in
     return (
-        <div className="min-h-screen font-sans flex flex-col" style={{ backgroundColor: COLORS.background, color: COLORS.typography }}>
-            <Header
-                currentView={currentView}
-                navigationHistory={navigationHistory}
-                goBack={goBack}
-                handleHomeClick={handleHomeClick}
-                isLoggedIn={isLoggedIn}
-                userProfile={userProfile}
-                handleSignOut={handleSignOut}
-                isAdminLoggedIn={isAdminLoggedIn}
-            />
-            <main className="flex-grow p-8">
-                {renderCurrentView()}
-            </main>
-            <Footer />
-        </div>
+        <HomePage
+            showLogin={showLogin}
+            setShowLogin={setShowLogin}
+            handleLogin={handleLogin}
+            loginDiscordId={loginDiscordId}
+            setLoginDiscordId={setLoginDiscordId}
+            loginPassword={loginPassword}
+            setLoginPassword={setLoginPassword}
+            showRegister={showRegister}
+            setShowRegister={setShowRegister}
+            handleRegister={handleRegister}
+            registerName={registerName}
+            setRegisterName={setRegisterName}
+            registerDiscordId={registerDiscordId}
+            setRegisterDiscordId={setRegisterDiscordId}
+            registerRegion={registerRegion}
+            setRegisterRegion={setRegisterRegion}
+            registerPassword={registerPassword}
+            setRegisterPassword={setRegisterPassword}
+            registerInitialDeposit={registerInitialDeposit}
+            setRegisterInitialDeposit={setRegisterInitialDeposit}
+        />
     );
-};
+}
 
 export default App;

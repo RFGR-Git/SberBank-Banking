@@ -6,6 +6,12 @@ export const COLORS = {
     tertiary: '#2E2E2E', // Light black/gray for contrast
     typography: '#EAEAEA', // Soft white
     buttonsGlow: 'rgba(0, 255, 170, 0.5)', // Semi-transparent green glow
+
+    // Additional standard colors for status indicators/alerts
+    success: '#00CC88', // A slightly darker green for success states
+    danger: '#FF4444', // A strong red for error/danger states
+    warning: '#FFBB00', // A distinct yellow/orange for warning states
+    info: '#00BFFF',    // A bright blue for informational states
 };
 
 // Region codes for KYC
