@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, updateDoc, collection, query, where, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore'; // Added onSnapshot
 import GlassCard from './common/GlassCard';
 import { COLORS } from '../constants';
 import { CheckCircle, Search, CreditCard, DollarSign, FileText, User, Shield, Settings, Zap, BarChart, Lock, Ban, Award, ClipboardList, TrendingUp, Landmark, Truck, Building, FileBadge, Coins, Package, MapPin } from 'lucide-react'; // Added more Lucide icons for new sections
@@ -22,14 +22,14 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
     const [govAmount, setGovAmount] = useState(''); // For government deposits/withdrawals
     const [businessLinkUserId, setBusinessLinkUserId] = useState(''); // For linking business to user
     const [businessRegId, setBusinessRegId] = useState(''); // For linking business to user
-    const [youthAccountId, setYouthAccountId] = useState(''); // For youth account graduation
+    const [youthAccountId, setYouthAccountId] = useState(''); // For youth account graduation (removed from UI, but state exists)
 
     // Helper to generate debit card details (copied from OpenSpecificAccountPage)
     const generateDebitCardDetails = () => {
         const num = Array(4).fill(0).map(() => Math.floor(1000 + Math.random() * 9000)).join(' ');
         const issueDate = new Date('2005-01-01');
         const expiryDate = new Date(issueDate);
-        expiryDate.setFullYear(expiryDate.getFullYear() + 7);
+        expiryDate.setFullYear(issueDate.getFullYear() + 7);
         const expiryMonth = String(expiryDate.getMonth() + 1).padStart(2, '0');
         const expiryYear = String(expiryDate.getFullYear()).slice(-2);
         const cvv = String(Math.floor(100 + Math.random() * 900));
@@ -46,56 +46,32 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
 
     // Fetch all types of pending requests
     useEffect(() => {
-        if (!db || !auth.currentUser) return; // Ensure db and authenticated user are available
+        if (!db || !auth.currentUser) {
+            console.log("AdminDashboardLayout: DB or auth.currentUser not ready for fetching requests.");
+            return;
+        }
+        console.log("AdminDashboardLayout: Current authenticated user UID:", auth.currentUser.uid); // <-- ADDED LOG
 
-        const fetchAllRequests = async () => {
-            try {
-                // Account Requests (Personal, Savings, Business, Government, Shadow)
-                const accountQ = query(collection(db, `artifacts/${appId}/public/data/accountRequests`), where("status", "==", "Pending"));
-                const accountSnapshot = await getDocs(accountQ);
-                setAccountRequests(accountSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-                // Credit Card Requests
-                const creditCardQ = query(collection(db, `artifacts/${appId}/public/data/creditCardRequests`), where("status", "==", "Pending"));
-                const creditCardSnapshot = await getDocs(creditCardQ);
-                setCreditCardRequests(creditCardSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-                // Deposit Requests
-                const depositQ = query(collection(db, `artifacts/${appId}/public/data/depositRequests`), where("status", "==", "Pending"));
-                const depositSnapshot = await getDocs(depositQ);
-                setDepositRequests(depositSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-                // Withdrawal Requests
-                const withdrawalQ = query(collection(db, `artifacts/${appId}/public/data/withdrawalRequests`), where("status", "==", "Pending"));
-                const withdrawalSnapshot = await getDocs(withdrawalQ);
-                setWithdrawalRequests(withdrawalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-                // Loan Requests
-                const loanQ = query(collection(db, `artifacts/${appId}/public/data/loanRequests`), where("status", "==", "Pending"));
-                const loanSnapshot = await getDocs(loanQ);
-                setLoanRequests(loanSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-            } catch (error) {
-                console.error("Error fetching all requests:", error);
-            }
-        };
-        fetchAllRequests();
         // Set up real-time listeners for all request types
         const unsubscribeAccountRequests = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/accountRequests`), where("status", "==", "Pending")), (snapshot) => {
             setAccountRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
+        }, (error) => console.error("AdminDashboardLayout: Error listening to account requests:", error));
+
         const unsubscribeCreditCardRequests = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/creditCardRequests`), where("status", "==", "Pending")), (snapshot) => {
             setCreditCardRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
+        }, (error) => console.error("AdminDashboardLayout: Error listening to credit card requests:", error));
+
         const unsubscribeDepositRequests = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/depositRequests`), where("status", "==", "Pending")), (snapshot) => {
             setDepositRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
+        }, (error) => console.error("AdminDashboardLayout: Error listening to deposit requests:", error));
+
         const unsubscribeWithdrawalRequests = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/withdrawalRequests`), where("status", "==", "Pending")), (snapshot) => {
             setWithdrawalRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
+        }, (error) => console.error("AdminDashboardLayout: Error listening to withdrawal requests:", error));
+
         const unsubscribeLoanRequests = onSnapshot(query(collection(db, `artifacts/${appId}/public/data/loanRequests`), where("status", "==", "Pending")), (snapshot) => {
             setLoanRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
+        }, (error) => console.error("AdminDashboardLayout: Error listening to loan requests:", error));
 
         return () => {
             unsubscribeAccountRequests();
@@ -564,8 +540,10 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
         }
         try {
             const foundUser = await findUserByDiscordOrBankId(govAccountId); // Assuming gov accounts also have a bankId or discordId
-            if (!foundUser || foundUser.data.accountType !== 'Government') { // Basic check, ideally would check for specific gov account type
-                alert('Government Account not found or invalid.');
+            // A more robust check would be to verify if the foundUser.data.accountType is indeed 'Government'
+            // For now, we'll proceed if user is found.
+            if (!foundUser) {
+                alert('Government Account not found.');
                 return;
             }
             const userDocRef = doc(db, `artifacts/${appId}/users`, foundUser.id);
@@ -637,14 +615,14 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
     };
 
     // Handle Youth Account Graduation (Placeholder - removed from UI but keeping function for now)
-    const handleGraduateYouthAccount = async () => {
-        if (!youthAccountId) {
-            alert('Please enter a Youth Account ID.');
-            return;
-        }
-        alert(`Simulating graduation for Youth Account ${youthAccountId}. (Functionality not fully implemented)`);
-        setYouthAccountId('');
-    };
+    // const handleGraduateYouthAccount = async () => {
+    //     if (!youthAccountId) {
+    //         alert('Please enter a Youth Account ID.');
+    //         return;
+    //     }
+    //     alert(`Simulating graduation for Youth Account ${youthAccountId}. (Functionality not fully implemented)`);
+    //     setYouthAccountId('');
+    // };
 
 
     return (
@@ -926,7 +904,6 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                         <input type="text" placeholder="Business Reg. ID" value={businessRegId} onChange={(e) => setBusinessRegId(e.target.value)} className="w-full p-3 border border-gray-600 rounded-lg mb-4" style={{ backgroundColor: COLORS.secondaryAccent, color: COLORS.typography }} />
                         <button onClick={handleLinkBusiness} className="w-full font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200" style={{ backgroundColor: COLORS.primaryAccent, color: COLORS.background, boxShadow: `0 0 10px ${COLORS.buttonsGlow}` }}>Link Business</button>
                     </GlassCard>
-                    {/* Youth Account Graduation - Removed as per request */}
                 </div>
             </section>
 
@@ -972,7 +949,7 @@ const AdminDashboardLayout = ({ setUserProfile, db, appId, auth }) => {
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Mass Role Editor:</span> Batch assign or remove roles (e.g., VIP, Investor, Partner).</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Bulk Account Export:</span> Export data by type: Personal / Gov / Business (Formats: CSV, XLSX).</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Interbank Transfer Log Viewer:</span> View pending, approved, and flagged transfers.</li>
-                        <li><span className="font-semibold" style={{ color: COLORS:primaryAccent }}>Dashboard Filtering Toggle:</span> Filter views by Account Type, Role Tier, Risk Status, Recent Activity.</li>
+                        <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Dashboard Filtering Toggle:</span> Filter views by Account Type, Role Tier, Risk Status, Recent Activity.</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Transaction Freeze Override:</span> Approve or deny auto-frozen transactions on flagged accounts.</li>
                         <li><span className="font-semibold" style={{ color: COLORS.primaryAccent }}>Force Emergency Lockdown:</span> Temporarily lock all transfers system-wide for emergency review.</li>
                         <button onClick={() => alert('Activating global lock... (Simulated)')} className="mt-4 font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200 bg-red-800 hover:bg-red-700" style={{ boxShadow: `0 0 10px rgba(255,0,0,0.7)` }}>Activate Global Lock</button>

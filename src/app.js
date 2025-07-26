@@ -42,7 +42,7 @@ const App = () => {
         // Set up listener for authentication state changes
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                console.log("User authenticated:", user.uid);
+                console.log("App.js: User authenticated:", user.uid);
                 // Fetch user profile from Firestore upon successful authentication
                 const userDocRef = doc(db, `artifacts/${appId}/users`, user.uid);
                 const userDocSnap = await getDoc(userDocRef);
@@ -54,13 +54,15 @@ const App = () => {
                     // Check for admin role from Firestore data
                     if (userData.isAdmin) {
                         setIsAdminLoggedIn(true);
+                        console.log("App.js: Admin user detected. isAdminLoggedIn set to true."); // <-- ADDED LOG
                         setCurrentView('admin-dashboard'); // Redirect admin to admin dashboard
                     } else {
                         setIsAdminLoggedIn(false);
+                        console.log("App.js: Regular user detected. isAdminLoggedIn set to false."); // <-- ADDED LOG
                         setCurrentView('dashboard'); // Redirect regular user to dashboard
                     }
                 } else {
-                    console.warn("User document not found for authenticated user:", user.uid);
+                    console.warn("App.js: User document not found for authenticated user:", user.uid);
                     // If user is authenticated but no profile, log them out and reset state
                     setIsLoggedIn(false);
                     setUserProfile(null);
@@ -68,7 +70,7 @@ const App = () => {
                     await signOut(auth); // Ensure user is fully logged out if profile is missing
                 }
             } else {
-                console.log("No user authenticated.");
+                console.log("App.js: No user authenticated.");
                 // Reset states if no user is authenticated
                 setIsLoggedIn(false);
                 setIsAdminLoggedIn(false);
@@ -83,24 +85,24 @@ const App = () => {
             if (typeof __initial_auth_token !== 'undefined' && auth) {
                 try {
                     await signInWithCustomToken(auth, __initial_auth_token);
-                    console.log("Signed in with custom token.");
+                    console.log("App.js: Signed in with custom token.");
                 } catch (error) {
-                    console.error("Error signing in with custom token:", error);
+                    console.error("App.js: Error signing in with custom token:", error);
                     // Fallback to anonymous sign-in if custom token fails
                     try {
                         await signInAnonymously(auth);
-                        console.log("Signed in anonymously as fallback.");
+                        console.log("App.js: Signed in anonymously as fallback.");
                     } catch (anonError) {
-                        console.error("Error signing in anonymously:", anonError);
+                        console.error("App.js: Error signing in anonymously:", anonError);
                     }
                 }
             } else if (auth) {
                 // If no custom token, try anonymous sign-in
                 try {
                     await signInAnonymously(auth);
-                    console.log("Signed in anonymously.");
+                    console.log("App.js: Signed in anonymously.");
                 } catch (error) {
-                    console.error("Error signing in anonymously:", error);
+                    console.error("App.js: Error signing in anonymously:", error);
                 }
             }
         };
@@ -122,7 +124,7 @@ const App = () => {
             if (docSnap.exists()) {
                 setUserProfile(docSnap.data()); // Update user profile state with latest data
             } else {
-                console.log("User profile no longer exists in Firestore.");
+                console.log("App.js: User profile no longer exists in Firestore.");
                 // If user document is deleted, log them out and reset state
                 setIsLoggedIn(false);
                 setIsAdminLoggedIn(false);
@@ -130,7 +132,7 @@ const App = () => {
                 setCurrentView('home');
             }
         }, (error) => {
-            console.error("Error listening to user profile:", error);
+            console.error("App.js: Error listening to user profile:", error);
         });
 
         return () => unsubscribe(); // Clean up the Firestore listener on unmount or dependency change
@@ -164,9 +166,9 @@ const App = () => {
         if (auth) {
             try {
                 await signOut(auth); // Sign out from Firebase Auth
-                console.log("User signed out.");
+                console.log("App.js: User signed out.");
             } catch (error) {
-                console.error("Error signing out:", error);
+                console.error("App.js: Error signing out:", error);
             }
         }
         // Reset all user-related states
